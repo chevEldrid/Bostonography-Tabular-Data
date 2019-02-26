@@ -1,0 +1,45 @@
+---
+title: "dataProject"
+author: "Chev Eldrid"
+date: "February 25, 2019"
+output: html_document
+---
+
+```{r}
+if (!require(tidyverse)) {install.packages("tidyverse")}
+library(tidyverse)
+```
+
+## R Markdown
+For this assignment I imported all public employees of Bostons' pay data from 2017
+We'll start by pulling in the total data set.
+
+```{r}
+project <- read_csv("data/employees of boston pay 2017.csv", n_max=500)
+```
+
+The first subset of data we'll look at is the top 10 average total saleries of Boston employees
+
+```{r}
+df <- data.frame(project$TITLE, project$`TOTAL EARNINGS`)
+names(df) <-c("JOB TITLE", "TOTAL EARNINGS")
+avg_saleries <- aggregate(.~`JOB TITLE`, data=df, mean)
+avg_saleries <- head(avg_saleries[order(avg_saleries$`TOTAL EARNINGS`, decreasing=TRUE), ], n=10)
+salary_graph <- ggplot(avg_saleries, aes(`JOB TITLE`, `TOTAL EARNINGS`)) + geom_col(fill = "#FF6666")
+salary_graph + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+#ggplot(df, aes(x=factor(age), y=score)) + stat_summary(fun.y="mean", geom="bar")
+
+```
+
+The second subset of data we'll look at is the total number of people hired by each department of the government
+```{r}
+
+df <- data.frame(project$`DEPARTMENT NAME`)
+names(df) <-("DEPARTMENT NAME")
+
+dept_count <- aggregate(x = df, by = list(unique.values = df$`DEPARTMENT NAME`), FUN = length)
+names(dept_count) <-c("DEPARTMENT NAME", "JOB COUNT")
+dept_count
+department_count <- ggplot(dept_count, aes(`DEPARTMENT NAME`, `JOB COUNT`)) + geom_col(fill = "#FF6666")
+department_count
+```
