@@ -35,8 +35,32 @@ salary_graph <- ggplot(avg_saleries, aes(x = reorder(`JOB TITLE`, -`BASE PAY`), 
 salary_graph
 
 ```
+For fun, let's Compare that to the bottom 10 positions by pay...
+```{r}
+df <- data.frame(project$TITLE, project$REGULAR)
+names(df) <-c("JOB TITLE", "BASE PAY")
+avg_saleries <- aggregate(.~`JOB TITLE`, data=df, mean)
+avg_saleries <- tail(avg_saleries[order(avg_saleries$`BASE PAY`, decreasing=TRUE), ], n=10)
+salary_graph <- ggplot(avg_saleries, aes(x = reorder(`JOB TITLE`, -`BASE PAY`), y = `BASE PAY`, fill=`JOB TITLE`)) + geom_col() + scale_colour_gradient2() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none") + ggtitle("Bottom 10 Salaries of City Employees") + xlab("Position Name") + ylab("Base Salary")
+salary_graph
 
-The second subset of data we'll look at is the top 10 departments with the highest staff count of the public sector. Originally, I wanted to do a not top ten but as we'll get into later, the department field in this data is less than helpful. While it's good for police departments and fire stations, in an example like education - each school is listed as a different department making it difficult to compare overall school jobs to police or fire. 
+```
+This is interesting. Considering these salaries are so low - it makes me think that some of these values are either part time work or people who quit early in the year. Because the data set is done by person and pay, outliers can really mess with some of the data. Ideally, we'd have some bottom threshold-going in knowing the lowest yearly salary and using that as the base. We probably can't take too much away from this data besides knowledge there is more data massaging to be done before we can accurately depict the bottom of the lists.
+----
+Let's explore a similar data set - let's look at top average pays per department as opposed to position
+```{r}
+df <- data.frame(project$`DEPARTMENT NAME`, project$REGULAR)
+names(df) <-c("DEPARTMENT", "BASE PAY")
+avg_saleries <- aggregate(.~`DEPARTMENT`, data=df, mean)
+avg_saleries <- head(avg_saleries[order(avg_saleries$`BASE PAY`, decreasing=TRUE), ], n=10)
+salary_graph <- ggplot(avg_saleries, aes(x = reorder(`DEPARTMENT`, -`BASE PAY`), y = `BASE PAY`, fill=`DEPARTMENT`)) + geom_col() + scale_colour_gradient2() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none") + ggtitle("Top 10 Average Salaries of City Departments") + xlab("Department") + ylab("Average Base Salary")
+salary_graph
+
+```
+This probably has more meaning than the other two salary graphs we looked at before. Especially after our earlier conversation on outliers. Now, those might be bringing down some of these averages but the total effect is minimal and here we get a better picture of what people are making based on industry.
+---
+
+The next subset of data we'll look at is the top 10 departments with the highest staff count of the public sector. Originally, I wanted to do a not top ten but as we'll get into later, the department field in this data is less than helpful. While it's good for police departments and fire stations, in an example like education - each school is listed as a different department making it difficult to compare overall school jobs to police or fire. 
 ```{r}
 df <- data.frame(project$`DEPARTMENT NAME`)
 names(df) <-("DEPARTMENT NAME")
@@ -46,7 +70,6 @@ names(dept_count) <-c("DEPARTMENT NAME", "JOB COUNT")
 dept_count <- head(dept_count[order(dept_count$`JOB COUNT`, decreasing=TRUE), ], n=10)
 department_count <- ggplot(dept_count, aes(x = reorder(`DEPARTMENT NAME`, -`JOB COUNT`), y=`JOB COUNT`, fill=`JOB COUNT`)) + geom_col() + scale_color_gradient2(low = "red", mid = "white", high = "blue", midpoint = median(dept_count$`JOB COUNT`))
 department_count + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Top 10 City Departments by Employee Count") + xlab("Department") + ylab("Total Number of Employees")
-
 
 
 ```
