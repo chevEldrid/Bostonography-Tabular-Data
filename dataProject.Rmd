@@ -4,42 +4,67 @@ author: "Chev Eldrid"
 date: "February 25, 2019"
 output: html_document
 ---
+For this assignment I decided to use the Total Pay of Public Boston Employees data set from 2017. At first, I thought this would be a really interesting data set to look at: analyzing average pay for different positions, see the highest paying public jobs in the city, maybe even splitting up the city budget by Department. This proved to be a little over eager. While I managed to achieve some of my goals with this data set, a few were out of reach. I'd like to take the opportunity to explain my thought process into analyzing this data and things I wish the set had contained.
 
+First, we need to load the tidyverse package to get access to things like read_csv and ggplot2, where all of our analysis takes place
 ```{r}
 if (!require(tidyverse)) {install.packages("tidyverse")}
 library(tidyverse)
 ```
 
-## R Markdown
-For this assignment I imported all public employees of Bostons' pay data from 2017
-We'll start by pulling in the total data set.
-
+We'll start by reading in the entire 22,000 entry pay csv. Originally, I had read_csv interpreting the type, but this led to a few problems. First: Because each entry dealing with pay had a dollar sign attached, read_csv interpreted them as character entries which are much more difficult to reason about. Second: Once I removed the dollar signs from the data set, for some reason it still identified the "REGULAR" column (for regular pay) as characters which didn't work out quite like I hoped...so intervention was necessary.
 ```{r}
-project <- read_csv("data/employees of boston pay 2017.csv", n_max=500)
+project <- read_csv("data/employees of boston pay 2017.csv", col_types = "cccnnnnnnnnn")
 ```
 
-The first subset of data we'll look at is the top 10 average total saleries of Boston employees
+For our first analysis, I wanted to compare the top 10 average pays by position hired by the city. First, I create a specialized data frame comprised of just the two variables I'm interested in studying: Job Title and Base Pay. 
+Then, I aggregate based on Job Title averaging the base pay for each position. While some of the top jobs are held by only a single person, in the case of multiple I wanted an honest representation.
+Finally, I sort from high to low and take the top 10 to display in a simple histogram. We also have to rotate the X-axis Job titles so they are readable. Lastly, we want to add some sort of coloring. I genuinely have 0% idea how using fill and a scale_colour_gradient2() works but - they do. In this case, there is no need for a unifying color since each position on the x is distinct so having very distinct colors is not a disadvantage. 
 
 ```{r}
-df <- data.frame(project$TITLE, project$`TOTAL EARNINGS`)
-names(df) <-c("JOB TITLE", "TOTAL EARNINGS")
+df <- data.frame(project$TITLE, project$REGULAR)
+names(df) <-c("JOB TITLE", "BASE PAY")
 avg_saleries <- aggregate(.~`JOB TITLE`, data=df, mean)
-avg_saleries <- head(avg_saleries[order(avg_saleries$`TOTAL EARNINGS`, decreasing=TRUE), ], n=10)
-salary_graph <- ggplot(avg_saleries, aes(`JOB TITLE`, `TOTAL EARNINGS`)) + geom_col(fill = "#FF6666")
-salary_graph + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-#ggplot(df, aes(x=factor(age), y=score)) + stat_summary(fun.y="mean", geom="bar")
+avg_saleries <- head(avg_saleries[order(avg_saleries$`BASE PAY`, decreasing=TRUE), ], n=10)
+#Some slight data tidying must be done for readability - for example one of the top jobs, President, is specifically president of bpl but that's not mentioned in the job title so we need to add it
+avg_saleries$`JOB TITLE` <- as.character(avg_saleries$`JOB TITLE`)
+avg_saleries$`JOB TITLE`[str_detect(avg_saleries$`JOB TITLE`, ".*President.*")] <- "BPL President"
+avg_saleries$`JOB TITLE` <- factor(avg_saleries$`JOB TITLE`)
+
+salary_graph <- ggplot(avg_saleries, aes(x = reorder(`JOB TITLE`, -`BASE PAY`), y = `BASE PAY`, fill=`JOB TITLE`)) + geom_col() + scale_colour_gradient2() + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none") + ggtitle("Top 10 Salaries of City Employees") + xlab("Position Name") + ylab("Base Salary")
+salary_graph
 
 ```
 
-The second subset of data we'll look at is the total number of people hired by each department of the government
+The second subset of data we'll look at is the top 10 departments with the highest staff count of the public sector. Originally, I wanted to do a not top ten but as we'll get into later, the department field in this data is less than helpful. While it's good for police departments and fire stations, in an example like education - each school is listed as a different department making it difficult to compare overall school jobs to police or fire. 
 ```{r}
-
 df <- data.frame(project$`DEPARTMENT NAME`)
 names(df) <-("DEPARTMENT NAME")
 
 dept_count <- aggregate(x = df, by = list(unique.values = df$`DEPARTMENT NAME`), FUN = length)
 names(dept_count) <-c("DEPARTMENT NAME", "JOB COUNT")
-dept_count
-department_count <- ggplot(dept_count, aes(`DEPARTMENT NAME`, `JOB COUNT`)) + geom_col(fill = "#FF6666")
-department_count
+dept_count <- head(dept_count[order(dept_count$`JOB COUNT`, decreasing=TRUE), ], n=10)
+department_count <- ggplot(dept_count, aes(x = reorder(`DEPARTMENT NAME`, -`JOB COUNT`), `JOB COUNT`)) + geom_col(fill = "#FF6666")
+department_count + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Top 10 City Departments by Employee Count") + xlab("Department") + ylab("Total Number of Employees")
+```
+
+Next, we'll look at total money spent by department:
+```{r}
+df <- data.frame(project$`DEPARTMENT NAME`, project$`TOTAL EARNINGS`)
+names(df) <-c("DEPARTMENT NAME", "TOTAL EARNINGS")
+total_dept_cost <- aggregate(.~`DEPARTMENT NAME`, data=df, FUN=sum)
+
+total_dept_cost$`SUPER TYPE` <- as.character(total_dept_cost$`DEPARTMENT NAME`)
+#gotta do some serious grouping...first: education
+school_terms <- ".*School.*|.*BPS.*|.*High Sch.*|.*K-8.*|.*Learning.*|.*Middle.*|.*High.*|.*Elementary.*|.*Academy.*"
+total_dept_cost$`SUPER TYPE`[str_detect(total_dept_cost$`SUPER TYPE`, school_terms)] <- "Education"
+#Police
+total_dept_cost$`SUPER TYPE`[str_detect(total_dept_cost$`SUPER TYPE`, ".*Police.*")] <- "Police"
+total_dept_cost$`SUPER TYPE`[str_detect(total_dept_cost$`SUPER TYPE`, ".*Fire*")] <- "Fire"
+#Can keep going...
+total_dept_cost <- aggregate(.~`SUPER TYPE`, data=total_dept_cost, FUN=sum)
+names(total_dept_cost) <-c("SUPER TYPE", "TOTAL COUNT", "TOTAL COST")
+total_dept_cost
+
+
 ```
