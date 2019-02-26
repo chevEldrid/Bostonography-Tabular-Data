@@ -44,8 +44,11 @@ names(df) <-("DEPARTMENT NAME")
 dept_count <- aggregate(x = df, by = list(unique.values = df$`DEPARTMENT NAME`), FUN = length)
 names(dept_count) <-c("DEPARTMENT NAME", "JOB COUNT")
 dept_count <- head(dept_count[order(dept_count$`JOB COUNT`, decreasing=TRUE), ], n=10)
-department_count <- ggplot(dept_count, aes(x = reorder(`DEPARTMENT NAME`, -`JOB COUNT`), `JOB COUNT`)) + geom_col(fill = "#FF6666")
+department_count <- ggplot(dept_count, aes(x = reorder(`DEPARTMENT NAME`, -`JOB COUNT`), y=`JOB COUNT`, fill=`JOB COUNT`)) + geom_col() + scale_color_gradient2(low = "red", mid = "white", high = "blue", midpoint = median(dept_count$`JOB COUNT`))
 department_count + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Top 10 City Departments by Employee Count") + xlab("Department") + ylab("Total Number of Employees")
+
+
+
 ```
 
 Next, we'll look at total money spent by department:
