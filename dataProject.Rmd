@@ -4,7 +4,23 @@ author: "Chev Eldrid"
 date: "February 25, 2019"
 output: html_document
 ---
-For this assignment I decided to use the Total Pay of Public Boston Employees data set from 2017. At first, I thought this would be a really interesting data set to look at: analyzing average pay for different positions, see the highest paying public jobs in the city, maybe even splitting up the city budget by Department. This proved to be a little over eager. While I managed to achieve some of my goals with this data set, a few were out of reach. I'd like to take the opportunity to explain my thought process into analyzing this data and things I wish the set had contained.
+For this assignment I decided to use the Total Pay of Public Boston Employees data set from 2017. At first, I thought this would be a really interesting data set to look at: analyzing average pay for different positions, see the highest paying public jobs in the city, maybe even splitting up the city budget by Department. This proved to be a little over-eager. While I managed to achieve some of my goals with this data set, a few were out of reach. I'd like to take the opportunity to explain my thought process into analyzing this data and things I wish the set had contained.
+
+Another little note: We're going to get a little buzzfeed-y here using "TOP 10" more often than over the entire data set. Because some of these values have too many possibilities - we need to break them down into a scale that makes sense.
+
+INFORMAL WRITEUP:
+
+This data was compiled by the city to show taxpayers what all government employees are getting paid.
+Each row is comprised of...
+NAME: Name of public sector Employee
+DEPARTMENT: public department employee works in (a bit misleading, for example each school is a different department)
+TITLE: actual job title of employee
+REGULAR: regular pay
+RETRO,OTHER,OVERTIME,INJURED,DETAIL,EDUCATION INCENTIVE: pay modifiers
+TOTAL EARNINGS: total regular pay plus modifiers
+POSTAL: postal code
+
+Primarily we'll focus on the DEPARTMENT, TITLE, and REGULAR columns to compare wages against sector and different positions within a sector.
 
 First, we need to load the tidyverse package to get access to things like read_csv and ggplot2, where all of our analysis takes place
 ```{r}
@@ -13,6 +29,8 @@ library(tidyverse)
 ```
 
 We'll start by reading in the entire 22,000 entry pay csv. Originally, I had read_csv interpreting the type, but this led to a few problems. First: Because each entry dealing with pay had a dollar sign attached, read_csv interpreted them as character entries which are much more difficult to reason about. Second: Once I removed the dollar signs from the data set, for some reason it still identified the "REGULAR" column (for regular pay) as characters which didn't work out quite like I hoped...so intervention was necessary.
+
+Also, some values have been changed from the original data to address parsing errors. For example, sometimes a value of "UNKNOWN" is put in a column for pay which is generally a number. This causes R to have issues so I've replaced them with the value ""
 ```{r}
 project <- read_csv("data/employees of boston pay 2017.csv", col_types = "cccnnnnnnnnn")
 ```
@@ -45,9 +63,9 @@ salary_graph <- ggplot(avg_saleries, aes(x = reorder(`JOB TITLE`, -`BASE PAY`), 
 salary_graph
 
 ```
-This is interesting. Considering these salaries are so low - it makes me think that some of these values are either part time work or people who quit early in the year. Because the data set is done by person and pay, outliers can really mess with some of the data. Ideally, we'd have some bottom threshold-going in knowing the lowest yearly salary and using that as the base. We probably can't take too much away from this data besides knowledge there is more data massaging to be done before we can accurately depict the bottom of the lists.
+This is interesting. Considering these salaries are so low - it makes me think that some of these values are either part time work or people who weren't paid for a full year. Because the data set is done by person and pay, outliers can really mess with some of the calculations. Ideally, we'd have some bottom threshold-going in knowing the lowest yearly salary and using that as the base. We probably can't take too much away from this data besides knowledge there is more data massaging to be done before we can accurately depict the bottom of the lists.
 ----
-Let's explore a similar data set - let's look at top average pays per department as opposed to position
+Let's explore a similar data set - top average wages per department as opposed to position
 ```{r}
 df <- data.frame(project$`DEPARTMENT NAME`, project$REGULAR)
 names(df) <-c("DEPARTMENT", "BASE PAY")
@@ -57,40 +75,63 @@ salary_graph <- ggplot(avg_saleries, aes(x = reorder(`DEPARTMENT`, -`BASE PAY`),
 salary_graph
 
 ```
-This probably has more meaning than the other two salary graphs we looked at before. Especially after our earlier conversation on outliers. Now, those might be bringing down some of these averages but the total effect is minimal and here we get a better picture of what people are making based on industry.
+This probably has more meaning than the other two salary graphs we looked at before. Especially after our earlier conversation on outliers. While those might be bringing down some of these averages, the total effect is minimal and here we get a better picture of what people are making based on industry.
 ---
-
 The next subset of data we'll look at is the top 10 departments with the highest staff count of the public sector. Originally, I wanted to do a not top ten but as we'll get into later, the department field in this data is less than helpful. While it's good for police departments and fire stations, in an example like education - each school is listed as a different department making it difficult to compare overall school jobs to police or fire. 
 ```{r}
 df <- data.frame(project$`DEPARTMENT NAME`)
 names(df) <-("DEPARTMENT NAME")
-
 dept_count <- aggregate(x = df, by = list(unique.values = df$`DEPARTMENT NAME`), FUN = length)
 names(dept_count) <-c("DEPARTMENT NAME", "JOB COUNT")
 dept_count <- head(dept_count[order(dept_count$`JOB COUNT`, decreasing=TRUE), ], n=10)
-department_count <- ggplot(dept_count, aes(x = reorder(`DEPARTMENT NAME`, -`JOB COUNT`), y=`JOB COUNT`, fill=`JOB COUNT`)) + geom_col() + scale_color_gradient2(low = "red", mid = "white", high = "blue", midpoint = median(dept_count$`JOB COUNT`))
-department_count + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + ggtitle("Top 10 City Departments by Employee Count") + xlab("Department") + ylab("Total Number of Employees")
-
+department_count <- ggplot(dept_count, aes(x = reorder(`DEPARTMENT NAME`, `JOB COUNT`), y=`JOB COUNT`, fill=`JOB COUNT`)) + geom_col() + scale_color_gradient2(low = "red", mid = "white", high = "blue", midpoint = median(dept_count$`JOB COUNT`)) + coord_flip()
+department_count + theme(legend.position = "none") + ggtitle("Top 10 City Departments by Employee Count") + xlab("Department") + ylab("Total Number of Employees")
 
 ```
 
-Next, we'll look at total money spent by department:
+Next, we'll provide a more focused dive into a subgroup of this data: positions relating to the Boston Public School System: BPS. There are many subcategories I could focus on, but BPS has the most different positions and departments underneath it to create a more interesting visual.
+
+First, we'll create a subset df filtering for all departments that contain the phrase "BPS" - which indicates a Boston Public School Position
+
 ```{r}
-df <- data.frame(project$`DEPARTMENT NAME`, project$`TOTAL EARNINGS`)
-names(df) <-c("DEPARTMENT NAME", "TOTAL EARNINGS")
-total_dept_cost <- aggregate(.~`DEPARTMENT NAME`, data=df, FUN=sum)
-
-total_dept_cost$`SUPER TYPE` <- as.character(total_dept_cost$`DEPARTMENT NAME`)
-#gotta do some serious grouping...first: education
-school_terms <- ".*School.*|.*BPS.*|.*High Sch.*|.*K-8.*|.*Learning.*|.*Middle.*|.*High.*|.*Elementary.*|.*Academy.*"
-total_dept_cost$`SUPER TYPE`[str_detect(total_dept_cost$`SUPER TYPE`, school_terms)] <- "Education"
-#Police
-total_dept_cost$`SUPER TYPE`[str_detect(total_dept_cost$`SUPER TYPE`, ".*Police.*")] <- "Police"
-total_dept_cost$`SUPER TYPE`[str_detect(total_dept_cost$`SUPER TYPE`, ".*Fire*")] <- "Fire"
-#Can keep going...
-total_dept_cost <- aggregate(.~`SUPER TYPE`, data=total_dept_cost, FUN=sum)
-names(total_dept_cost) <-c("SUPER TYPE", "TOTAL COUNT", "TOTAL COST")
-total_dept_cost
-
-
+bps_project <- project[str_detect(project$`DEPARTMENT NAME`, ".*BPS.*"), ]
 ```
+
+Now, Let's do a box and whiskers plot because I hate myself. We'll do regular salary by job title
+
+This won't include every position listed under a BPS Department. We're going to do some grouping around similar positions to get a better feel over fewer entries. Then, we'll display some of the more well known types of positions.
+```{r}
+df <- data.frame(bps_project$`TITLE`, bps_project$REGULAR)
+names(df) <-c("TITLE", "BASE PAY")
+salaries <- df
+#doing some grouping
+salaries$`AGG TITLE` <- as.character(salaries$TITLE)
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Principal.*|.*Headmaster*")] <- "Principal"
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Custodian.*")] <- "Custodian"
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Clerk.*")] <- "Clerk"
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Substitute.*|Sub .*")] <- "Substitute"
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Director.*")] <- "Director"
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Teacher.*")] <- "Teacher"
+salaries$`AGG TITLE`[str_detect(salaries$`AGG TITLE`, ".*Program Director.*|.*Prog Director.*")] <- "Program Director"
+#Now we limit positions
+salaries <- salaries[str_detect(salaries$`AGG TITLE`, "Principal|Teacher|Custodian|Clerk|Substitute|Director|Program Director"), ]
+salary_graph <- ggplot(salaries, aes(x = reorder(`AGG TITLE`, -`BASE PAY`), y = `BASE PAY`, fill=`AGG TITLE`)) + geom_boxplot() + ggtitle("Average Salaries of BPS Positions") + xlab("Title") + ylab("Base Salary")
+salary_graph
+```
+Some values are removed due to not being filled in right, but that's more the data than the graph. We can also see a LOT of outliers. Here's another example of this data not being quite the best in its vanilla form due to employees not working full years. Ideally, we'd have another data set to cross-check employees who were paid a full annual salary so we would only be viewing those results. At least with a box and whisker we can see which values are outliers and which are in the standard deviation more accurately.
+
+Finally, I was talking to a friend about life expectancy and poverty levels tied to zipcode. I haven't explored the postal column of the dataset yet so let's do an even more finer-tuned analysis: Teacher Salary by Zipcode. We'll start with the same dataset we used for the Average Salaries of BPS Positions graph but instead of featuring multiple positions we'll just be looking at teachers.
+
+```{r}
+df <- data.frame(bps_project$`TITLE`, bps_project$REGULAR, bps_project$POSTAL)
+names(df) <-c("TITLE", "BASE PAY", "POSTAL")
+salaries <- df
+salaries <- salaries[str_detect(salaries$`TITLE`, "Teacher"), ]
+salaries <- aggregate(.~`POSTAL`, data=salaries, mean)
+#filter for zips in the bps - cross checked with https://www.bostonpublicschools.org/Page/628
+salaries <- salaries[str_detect(salaries$`POSTAL`, "2111|2113|2115|2116|2118|2119|2120|2121|2122|2124|2125|2126|2127|2128|2129|2130|2131|2132|2134|2135|2136"), ]
+salary_graph <- ggplot(salaries, aes(x = reorder(`POSTAL`, -`BASE PAY`), y = `BASE PAY`)) + geom_col(fill="#ff4444") + ggtitle("Average Salaries of Teachers by Zipcode") + xlab("Zipcode") + ylab("Base Salary") + theme(axis.text.x = element_text(angle = 90, hjust = 1), legend.position = "none")
+salary_graph
+```
+
+Overall, the majority of the analyses take the form of a discrete x(Title/Department/Postal) and a continuous y (regular). This limits the number of different graphs we can use to easily represent this data so instead I tried to illustrate as many different emphases as possible.
