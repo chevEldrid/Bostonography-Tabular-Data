@@ -53,6 +53,7 @@ salary_graph <- ggplot(avg_saleries, aes(x = reorder(`JOB TITLE`, -`BASE PAY`), 
 salary_graph
 
 ```
+
 For fun, let's Compare that to the bottom 10 positions by pay...
 ```{r}
 df <- data.frame(project$TITLE, project$REGULAR)
@@ -63,8 +64,9 @@ salary_graph <- ggplot(avg_saleries, aes(x = reorder(`JOB TITLE`, -`BASE PAY`), 
 salary_graph
 
 ```
+
 This is interesting. Considering these salaries are so low - it makes me think that some of these values are either part time work or people who weren't paid for a full year. Because the data set is done by person and pay, outliers can really mess with some of the calculations. Ideally, we'd have some bottom threshold-going in knowing the lowest yearly salary and using that as the base. We probably can't take too much away from this data besides knowledge there is more data massaging to be done before we can accurately depict the bottom of the lists.
-----
+
 Let's explore a similar data set - top average wages per department as opposed to position
 ```{r}
 df <- data.frame(project$`DEPARTMENT NAME`, project$REGULAR)
@@ -75,8 +77,9 @@ salary_graph <- ggplot(avg_saleries, aes(x = reorder(`DEPARTMENT`, -`BASE PAY`),
 salary_graph
 
 ```
+
 This probably has more meaning than the other two salary graphs we looked at before. Especially after our earlier conversation on outliers. While those might be bringing down some of these averages, the total effect is minimal and here we get a better picture of what people are making based on industry.
----
+
 The next subset of data we'll look at is the top 10 departments with the highest staff count of the public sector. Originally, I wanted to do a not top ten but as we'll get into later, the department field in this data is less than helpful. While it's good for police departments and fire stations, in an example like education - each school is listed as a different department making it difficult to compare overall school jobs to police or fire. 
 ```{r}
 df <- data.frame(project$`DEPARTMENT NAME`)
@@ -118,6 +121,7 @@ salaries <- salaries[str_detect(salaries$`AGG TITLE`, "Principal|Teacher|Custodi
 salary_graph <- ggplot(salaries, aes(x = reorder(`AGG TITLE`, -`BASE PAY`), y = `BASE PAY`, fill=`AGG TITLE`)) + geom_boxplot() + ggtitle("Average Salaries of BPS Positions") + xlab("Title") + ylab("Base Salary")
 salary_graph
 ```
+
 Some values are removed due to not being filled in right, but that's more the data than the graph. We can also see a LOT of outliers. Here's another example of this data not being quite the best in its vanilla form due to employees not working full years. Ideally, we'd have another data set to cross-check employees who were paid a full annual salary so we would only be viewing those results. At least with a box and whisker we can see which values are outliers and which are in the standard deviation more accurately.
 
 Finally, I was talking to a friend about life expectancy and poverty levels tied to zipcode. I haven't explored the postal column of the dataset yet so let's do an even more finer-tuned analysis: Teacher Salary by Zipcode. We'll start with the same dataset we used for the Average Salaries of BPS Positions graph but instead of featuring multiple positions we'll just be looking at teachers.
